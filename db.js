@@ -1,0 +1,567 @@
+// db.js - Base de datos ligera con almacenamiento persistente en JSON
+const fs = require('fs');
+const path = require('path');
+
+const DB_FILE = path.join(__dirname, 'data', 'database.json');
+
+const INITIAL_DATA = {
+  users: [
+    { id: 1, nombres: "Miguel", apellidos: "Mantari", correo: "miguel@salud.gob.pe", dni: "12345678", rol: "Administrador", area: "Administración", estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 2, nombres: "Nilver", apellidos: "Coronado", correo: "nilver@salud.gob.pe", dni: "23456789", rol: "Almacenero", area: "Almacén", estado: "Activo", fecha_registro: "12/09/2026 08:10" },
+    { id: 3, nombres: "Luis", apellidos: "Salazar", correo: "luis12@salud.gob.pe", dni: "34567890", rol: "Usuario", area: "Limpieza", estado: "Activo", fecha_registro: "15/09/2026 11:30" },
+    { id: 4, nombres: "Kevin", apellidos: "Vargas", correo: "kevin13@salud.gob.pe", dni: "45678901", rol: "Usuario", area: "Farmacia", estado: "Activo", fecha_registro: "18/09/2026 12:50" }
+  ],
+  categorias: [
+    { id: 1, nombre: "Material Médico", descripcion: "Material médico e insumos descartables", estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 2, nombre: "Material de limpieza", descripcion: "Detergentes, desinfectantes y otros", estado: "Activo", fecha_registro: "12/09/2026 08:15" },
+    { id: 3, nombre: "Material de Escritorio", descripcion: "Papelería, bolígrafos, útiles de oficina", estado: "Activo", fecha_registro: "15/09/2026 14:30" },
+    { id: 4, nombre: "Equipos Médicos", descripcion: "Instrumentos y aparatos de diagnóstico", estado: "Activo", fecha_registro: "18/09/2026 16:45" },
+    { id: 5, nombre: "Mobiliario", descripcion: "Muebles, camillas, sillas", estado: "Activo", fecha_registro: "20/09/2026 11:25" },
+    { id: 6, nombre: "Medicamentos", descripcion: "Fármacos y tratamientos esenciales", estado: "Activo", fecha_registro: "25/09/2026 12:05" },
+    { id: 7, nombre: "Otros bienes", descripcion: "Bienes no categorizados", estado: "Activo", fecha_registro: "28/09/2026 09:00" }
+  ],
+  unidades: [
+    { id: 1, nombre: "Unidad", abreviatura: "und", categoria: "General", referencia: "-", factor: 1, estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 2, nombre: "Caja", abreviatura: "cja", categoria: "General", referencia: "Unidad(und)", factor: 10, estado: "Activo", fecha_registro: "12/09/2026 08:15" },
+    { id: 3, nombre: "Paquete", abreviatura: "paq", categoria: "General", referencia: "Unidad(und)", factor: 5, estado: "Activo", fecha_registro: "15/09/2026 14:20" },
+    { id: 4, nombre: "Kilogramo", abreviatura: "kg", categoria: "Peso", referencia: "Gramo(g)", factor: 1000, estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 5, nombre: "Gramo", abreviatura: "g", categoria: "Peso", referencia: "Gramo(g)", factor: 1, estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 6, nombre: "Litro", abreviatura: "L", categoria: "Volumen", referencia: "Mililitro(ml)", factor: 1000, estado: "Activo", fecha_registro: "11/09/2026 10:20" }
+  ],
+  areas: [
+    { id: 1, nombre: "Administración", descripcion: "Gestión administrativa del centro", estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 2, nombre: "Almacén", descripcion: "Gestión y control de inventario", estado: "Activo", fecha_registro: "12/09/2026 08:10" },
+    { id: 3, nombre: "Enfermería", descripcion: "Almacén y procedimientos de enfermería", estado: "Activo", fecha_registro: "15/09/2026 14:30" },
+    { id: 4, nombre: "Emergencia", descripcion: "Atención de urgencias y shock trauma", estado: "Activo", fecha_registro: "16/09/2026 09:00" },
+    { id: 5, nombre: "Farmacia", descripcion: "Dispensación de medicamentos", estado: "Activo", fecha_registro: "17/09/2026 10:00" },
+    { id: 6, nombre: "Limpieza", descripcion: "Servicios de desinfección y aseo", estado: "Activo", fecha_registro: "18/09/2026 11:00" },
+    { id: 7, nombre: "Oficinas", descripcion: "Áreas administrativas secundarias", estado: "Activo", fecha_registro: "19/09/2026 12:00" }
+  ],
+  ubicaciones: [
+    { id: 1, nombre: "Estante A - Fila 1", descripcion: "Insumos generales", estado: "Activo", fecha_registro: "10/09/2026 10:20" },
+    { id: 2, nombre: "Estante A - Fila 2", descripcion: "Insumos médicos", estado: "Activo", fecha_registro: "12/09/2026 08:10" },
+    { id: 3, nombre: "Estante B - Fila 1", descripcion: "Material de limpieza", estado: "Activo", fecha_registro: "15/09/2026 14:30" },
+    { id: 4, nombre: "Estante B - Fila 2", descripcion: "Material de escritorio", estado: "Activo", fecha_registro: "16/09/2026 09:00" },
+    { id: 5, nombre: "Estante C - Fila 1", descripcion: "Soluciones y líquidos", estado: "Activo", fecha_registro: "17/09/2026 10:00" },
+    { id: 6, nombre: "Estante C - Fila 3", descripcion: "Productos varios", estado: "Activo", fecha_registro: "18/09/2026 11:00" },
+    { id: 7, nombre: "Almacén 1", descripcion: "Depósito principal", estado: "Activo", fecha_registro: "19/09/2026 12:00" },
+    { id: 8, nombre: "Almacén 2", descripcion: "Depósito secundario", estado: "Activo", fecha_registro: "20/09/2026 12:00" }
+  ],
+  centro_info: {
+    nombre: "Centro de Salud San Luis de Lucma",
+    codigo_renipress: "00004521",
+    direccion: "Av. Principal S/N, San Luis de Lucma, Cutervo, Cajamarca",
+    telefono: "(076) 834512",
+    director: "Dr. Alejandro Gómez",
+    email: "cs.lucma@salud.gob.pe"
+  },
+  proveedores: [
+    {
+      id: 1,
+      nombre: "FarmaPlus SAC",
+      ruc: "20123456789",
+      contacto: "Juan Perez",
+      cargo: "Gerente de Ventas",
+      telefono: "987 654 321",
+      email: "contacto@farmaplus.com",
+      direccion: "Av. Los Olivos 123, Lima",
+      referencia: "A 2 cuadras del Hospital, frente a la farmacia San Pedro",
+      distrito: "Los Olivos",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Activo"
+    },
+    {
+      id: 2,
+      nombre: "MediCord",
+      ruc: "20456789123",
+      contacto: "Ana Torres",
+      cargo: "Representante Comercial",
+      telefono: "987654321",
+      email: "ventas@medicorp.com",
+      direccion: "Calle Las Begonias 450",
+      referencia: "Frente al parque principal",
+      distrito: "San Isidro",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Activo"
+    },
+    {
+      id: 3,
+      nombre: "BioSalud",
+      ruc: "20987654321",
+      contacto: "Carlos Ruiz",
+      cargo: "Supervisor de Distribución",
+      telefono: "945111222",
+      email: "info@biosalud.com",
+      direccion: "Av. Colonial 880",
+      referencia: "Esq. con Av. Universitaria",
+      distrito: "Cercado",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Inactivo"
+    },
+    {
+      id: 4,
+      nombre: "SaludTotal",
+      ruc: "20112233445",
+      contacto: "María López",
+      cargo: "Asesora de Compras",
+      telefono: "977333444",
+      email: "contacto@saludtotal.com",
+      direccion: "Av. Arequipa 1234",
+      referencia: "Cerca de estación central",
+      distrito: "Lince",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Activo"
+    },
+    {
+      id: 5,
+      nombre: "MediEquip",
+      ruc: "20678912345",
+      contacto: "Luis García",
+      cargo: "Director de Cuentas",
+      telefono: "988555666",
+      email: "ventas@mediequip.com",
+      direccion: "Av. Javier Prado Este 2500",
+      referencia: "Torre empresarial piso 8",
+      distrito: "San Borja",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Activo"
+    },
+    {
+      id: 6,
+      nombre: "CleanPerú",
+      ruc: "20556677889",
+      contacto: "Sofía Ramírez",
+      cargo: "Jefa de Logística",
+      telefono: "912777888",
+      email: "contacto@cleanperu.com",
+      direccion: "Jr. Ayacucho 452",
+      referencia: "Alt. cuadra 5",
+      distrito: "Breña",
+      provincia: "Lima",
+      departamento: "Lima",
+      estado: "Activo"
+    }
+  ],
+  productos: [
+    {
+      id: 1,
+      codigo: "MED-001",
+      nombre: "Guantes descartables",
+      categoria: "Material Médico",
+      descripcion: "Guantes de latex desechables",
+      unidad: "Caja",
+      presentacion: "Caja x 100 unidades",
+      proveedor: "FarmaPlus SAC",
+      stock_minimo: 20,
+      stock_maximo: 100,
+      stock_actual: 30,
+      ubicacion: "Estante B - Fila 2",
+      area_servicio: "Limpieza",
+      estado: "Activo",
+      fecha_vencimiento: ""
+    },
+    {
+      id: 2,
+      codigo: "MED-002",
+      nombre: "Jeringas Desechables 5ml",
+      categoria: "Material Médico",
+      descripcion: "Jeringas con aguja estéril 5ml",
+      unidad: "Caja",
+      presentacion: "Caja x 50 unidades",
+      proveedor: "MediCord",
+      stock_minimo: 50,
+      stock_maximo: 200,
+      stock_actual: 50,
+      ubicacion: "Estante A - Fila 1",
+      area_servicio: "Limpieza",
+      estado: "Activo",
+      fecha_vencimiento: "20/11/2026"
+    },
+    {
+      id: 3,
+      codigo: "MED-003",
+      nombre: "Alcohol 70% 1L",
+      categoria: "Material de limpieza",
+      descripcion: "Solución de alcohol etílico antiséptico",
+      unidad: "Litro",
+      presentacion: "Frasco x 1000ml",
+      proveedor: "CleanPerú",
+      stock_minimo: 30,
+      stock_maximo: 150,
+      stock_actual: 20,
+      ubicacion: "Estante A - Fila 2",
+      area_servicio: "Limpieza",
+      estado: "Activo",
+      fecha_vencimiento: ""
+    },
+    {
+      id: 4,
+      codigo: "INS-002",
+      nombre: "Mascarillas Quirúrgicas",
+      categoria: "Material Médico",
+      descripcion: "Mascarillas descartables tricapa con elástico",
+      unidad: "Caja",
+      presentacion: "Caja x 50 unidades",
+      proveedor: "FarmaPlus SAC",
+      stock_minimo: 50,
+      stock_maximo: 300,
+      stock_actual: 8,
+      ubicacion: "Estante A - Fila 2",
+      area_servicio: "Emergencia",
+      estado: "Activo",
+      fecha_vencimiento: "15/12/2026"
+    },
+    {
+      id: 5,
+      codigo: "OFI-001",
+      nombre: "Papel Bond A4",
+      categoria: "Material de Escritorio",
+      descripcion: "Millar de papel bond 75gr",
+      unidad: "Paquete",
+      presentacion: "Paquete x 500 hojas",
+      proveedor: "SaludTotal",
+      stock_minimo: 50,
+      stock_maximo: 200,
+      stock_actual: 20,
+      ubicacion: "Estante B - Fila 1",
+      area_servicio: "Oficinas",
+      estado: "Activo",
+      fecha_vencimiento: ""
+    },
+    {
+      id: 6,
+      codigo: "LIM-001",
+      nombre: "Detergente",
+      categoria: "Material de limpieza",
+      descripcion: "Detergente industrial multiusos",
+      unidad: "Kilogramo",
+      presentacion: "Bolsa x 5kg",
+      proveedor: "CleanPerú",
+      stock_minimo: 10,
+      stock_maximo: 50,
+      stock_actual: 6,
+      ubicacion: "Estante C - Fila 3",
+      area_servicio: "Limpieza",
+      estado: "Activo",
+      fecha_vencimiento: ""
+    },
+    {
+      id: 7,
+      codigo: "EQP-001",
+      nombre: "Estetoscopio",
+      categoria: "Equipos Médicos",
+      descripcion: "Estetoscopio profesional acústico doble campana",
+      unidad: "Unidad",
+      presentacion: "Unidad en estuche",
+      proveedor: "MediEquip",
+      stock_minimo: 5,
+      stock_maximo: 25,
+      stock_actual: 12,
+      ubicacion: "Almacén 1",
+      area_servicio: "Administración",
+      estado: "Activo",
+      fecha_vencimiento: ""
+    },
+    {
+      id: 8,
+      codigo: "FAR-003",
+      nombre: "Paracetamol 500mg",
+      categoria: "Medicamentos",
+      descripcion: "Tabletas de paracetamol 500mg",
+      unidad: "Caja",
+      presentacion: "Caja x 100 tabletas",
+      proveedor: "FarmaPlus SAC",
+      stock_minimo: 50,
+      stock_maximo: 300,
+      stock_actual: 18,
+      ubicacion: "Estante A - Fila 1",
+      area_servicio: "Farmacia",
+      estado: "Activo",
+      fecha_vencimiento: "28/02/2027"
+    },
+    {
+      id: 9,
+      codigo: "MED-004",
+      nombre: "Solución Salina 0.9%",
+      categoria: "Material Médico",
+      descripcion: "Cloruro de sodio al 0.9% para infusión",
+      unidad: "Unidad",
+      presentacion: "Frasco 1000ml",
+      proveedor: "BioSalud",
+      stock_minimo: 40,
+      stock_maximo: 200,
+      stock_actual: 10,
+      ubicacion: "Estante C - Fila 1",
+      area_servicio: "Emergencia",
+      estado: "Activo",
+      fecha_vencimiento: "28/02/2027"
+    }
+  ],
+  entradas: [
+    {
+      id: 1,
+      numero: "ENT-001",
+      fecha: "18/09/2026 16:40",
+      proveedor: "FarmaPlus SAC",
+      tipo_documento: "Factura",
+      numero_documento: "FAC-001",
+      total_productos: 6,
+      registrado_por: "Nilver Coronado",
+      observacion: "Ingreso ordinario de insumos médicos de reposición mensual.",
+      documento_pdf: "FAC-001.pdf",
+      items: [
+        { producto: "Alcohol 70% 1L", cantidad: 20, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Mascarillas Quirúrgicas", cantidad: 50, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Guantes descartables", cantidad: 30, unidad: "Caja", ubicacion: "Estante B - Fila 2" }
+      ]
+    },
+    {
+      id: 2,
+      numero: "ENT-002",
+      fecha: "15/09/2026 11:20",
+      proveedor: "CleanPerú",
+      tipo_documento: "Boleta",
+      numero_documento: "BOL-001",
+      total_productos: 4,
+      registrado_por: "Kevin Vargas",
+      observacion: "Ingreso de materiales de limpieza y desinfección.",
+      documento_pdf: "BOL-001.pdf",
+      items: [
+        { producto: "Detergente", cantidad: 15, unidad: "Kilogramo", ubicacion: "Estante C - Fila 3" }
+      ]
+    },
+    {
+      id: 3,
+      numero: "ENT-003",
+      fecha: "10/09/2026 15:10",
+      proveedor: "MediCord",
+      tipo_documento: "Factura",
+      numero_documento: "FAC-005",
+      total_productos: 9,
+      registrado_por: "Miguel Mantari",
+      observacion: "Abastecimiento de jeringas y gasas estériles.",
+      documento_pdf: "FAC-005.pdf",
+      items: [
+        { producto: "Jeringas Desechables 5ml", cantidad: 100, unidad: "Caja", ubicacion: "Estante A - Fila 1" }
+      ]
+    },
+    {
+      id: 4,
+      numero: "ENT-004",
+      fecha: "08/09/2026 16:40",
+      proveedor: "SaludTotal",
+      tipo_documento: "Guía de Remisión",
+      numero_documento: "GR-002",
+      total_productos: 2,
+      registrado_por: "Anthony Mejia",
+      observacion: "Material de escritorio para áreas administrativas.",
+      documento_pdf: "GR-002.pdf",
+      items: [
+        { producto: "Papel Bond A4", cantidad: 40, unidad: "Paquete", ubicacion: "Estante B - Fila 1" }
+      ]
+    }
+  ],
+  salidas: [
+    {
+      id: 1,
+      numero: "SAL-001",
+      fecha: "28/09/2026 14:20",
+      area_servicio: "Limpieza",
+      tipo_salida: "Consumo",
+      numero_documento: "REQ-001",
+      registrado_por: "Nilver Coronado",
+      observacion: "Salida de insumos para atención de emergencia y limpieza general.",
+      documento_pdf: "REQ-001.pdf",
+      items: [
+        { producto: "Alcohol 70% 1L", cantidad: 20, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Mascarillas Quirúrgicas", cantidad: 10, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Guantes descartables", cantidad: 30, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Gasas estériles", cantidad: 15, unidad: "Caja", ubicacion: "Estante A - Fila 2" },
+        { producto: "Jeringas 5 ml", cantidad: 50, unidad: "Caja", ubicacion: "Estante A - Fila 2" }
+      ]
+    },
+    {
+      id: 2,
+      numero: "SAL-002",
+      fecha: "29/09/2026 14:20",
+      area_servicio: "Limpieza",
+      tipo_salida: "Consumo",
+      numero_documento: "FAC-005",
+      registrado_por: "Miguel Mantari",
+      observacion: "Entrega de lejia y desinfectantes.",
+      documento_pdf: "SAL-002.pdf",
+      items: [
+        { producto: "Detergente", cantidad: 14, unidad: "Kilogramo", ubicacion: "Estante C - Fila 3" }
+      ]
+    },
+    {
+      id: 3,
+      numero: "SAL-003",
+      fecha: "30/09/2026 14:20",
+      area_servicio: "Limpieza",
+      tipo_salida: "Consumo",
+      numero_documento: "BOL-001",
+      registrado_por: "Kevin Vargas",
+      observacion: "Consumo mensual de área de mantenimiento.",
+      documento_pdf: "SAL-003.pdf",
+      items: [
+        { producto: "Alcohol 70% 1L", cantidad: 7, unidad: "Litro", ubicacion: "Estante A - Fila 2" }
+      ]
+    },
+    {
+      id: 4,
+      numero: "SAL-004",
+      fecha: "01/10/2026 14:20",
+      area_servicio: "Limpieza",
+      tipo_salida: "Consumo",
+      numero_documento: "GR-002",
+      registrado_por: "Anthony Mejia",
+      observacion: "Reposición diaria.",
+      documento_pdf: "SAL-004.pdf",
+      items: [
+        { producto: "Detergente", cantidad: 9, unidad: "Kilogramo", ubicacion: "Estante C - Fila 3" }
+      ]
+    }
+  ],
+  movimientos: [
+    {
+      id: 1,
+      fecha_hora: "28/09/2026 14:20",
+      tipo: "Salida",
+      producto: "Detergente",
+      cantidad: -10,
+      area_proveedor: "Limpieza",
+      registrado_por: "Nilver Coronado",
+      numero_documento: "FAC-001",
+      ubicacion: "Estante C - Fila 3",
+      stock_antes: 16,
+      stock_despues: 6,
+      observacion: "Salida para limpieza de pisos y áreas comunes",
+      documento_pdf: "SAL-001.pdf"
+    },
+    {
+      id: 2,
+      fecha_hora: "29/09/2026 11:15",
+      tipo: "Salida",
+      producto: "Alcohol 70% 1L",
+      cantidad: -20,
+      area_proveedor: "Emergencia",
+      registrado_por: "Miguel Mantari",
+      numero_documento: "SAL-001",
+      ubicacion: "Estante A - Fila 2",
+      stock_antes: 50,
+      stock_despues: 30,
+      observacion: "Salida de alcohol para atención de emergencia",
+      documento_pdf: "SAL-001.pdf"
+    },
+    {
+      id: 3,
+      fecha_hora: "29/09/2026 14:20",
+      tipo: "Salida",
+      producto: "Lejía",
+      cantidad: -6,
+      area_proveedor: "Limpieza",
+      registrado_por: "Miguel Mantari",
+      numero_documento: "FAC-005",
+      ubicacion: "Estante C - Fila 3",
+      stock_antes: 12,
+      stock_despues: 6,
+      observacion: "Desinfección de consultorios",
+      documento_pdf: "SAL-002.pdf"
+    },
+    {
+      id: 4,
+      fecha_hora: "30/09/2026 14:20",
+      tipo: "Salida",
+      producto: "Suavizante",
+      cantidad: -7,
+      area_proveedor: "Limpieza",
+      registrado_por: "Kevin Vargas",
+      numero_documento: "BOL-001",
+      ubicacion: "Estante C - Fila 3",
+      stock_antes: 10,
+      stock_despues: 3,
+      observacion: "Lavandería general",
+      documento_pdf: "SAL-003.pdf"
+    },
+    {
+      id: 5,
+      fecha_hora: "01/10/2026 14:20",
+      tipo: "Salida",
+      producto: "Detergente",
+      cantidad: -9,
+      area_proveedor: "Limpieza",
+      registrado_por: "Anthony Mejia",
+      numero_documento: "GR-002",
+      ubicacion: "Estante C - Fila 3",
+      stock_antes: 15,
+      stock_despues: 6,
+      observacion: "Limpieza diaria",
+      documento_pdf: "SAL-004.pdf"
+    },
+    {
+      id: 6,
+      fecha_hora: "27/10/2026 09:30",
+      tipo: "Entrada",
+      producto: "Guantes de nitrilo",
+      cantidad: 500,
+      area_proveedor: "FarmaPlus SAC",
+      registrado_por: "M. Mantari",
+      numero_documento: "FAC-009",
+      ubicacion: "Estante B - Fila 2",
+      stock_antes: 100,
+      stock_despues: 600,
+      observacion: "Compra extraordinaria",
+      documento_pdf: "FAC-009.pdf"
+    },
+    {
+      id: 7,
+      fecha_hora: "26/10/2026 10:15",
+      tipo: "Entrada",
+      producto: "Alcohol 70%",
+      cantidad: 10,
+      area_proveedor: "CleanPerú",
+      registrado_por: "N. Coronado",
+      numero_documento: "FAC-011",
+      ubicacion: "Estante A - Fila 2",
+      stock_antes: 10,
+      stock_despues: 20,
+      observacion: "Recepción de lote semanal",
+      documento_pdf: "FAC-011.pdf"
+    }
+  ]
+};
+
+function readDb() {
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(INITIAL_DATA, null, 2), 'utf-8');
+      return INITIAL_DATA;
+    }
+    const data = fs.readFileSync(DB_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Error reading db:', err);
+    return INITIAL_DATA;
+  }
+}
+
+function writeDb(data) {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error writing db:', err);
+    return false;
+  }
+}
+
+module.exports = {
+  readDb,
+  writeDb
+};
